@@ -91,11 +91,3 @@ Optional vertical movement requires a fourth terminal, sourced like Terminal 3:
 ```bash
 ./venv/bin/python3 -m gaze_attention.pitch_relay
 ```
-
-## Verify
-
-With ROS sourced, `ros2 topic echo /attention_target_angle --once` checks camera
-output and `ros2 topic echo /eye/target_angle --once` checks the yaw controller.
-With the camera stopped, `bash scripts/manual_eye_test.sh` (from
-`robot_attention_clean/`) sends manual yaw commands to the running controller.
-See `docs/LIVE_CAMERA_VALIDATION.md` for the perception validation procedure.
