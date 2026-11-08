@@ -5,6 +5,16 @@ preview, attention arbitration, and two textured blue eyes in **Gazebo Classic 1
 ROS 2 Humble carries the selected person's angle to a custom C++ joint plugin.
 Gazebo Sim and `ros_gz_bridge` are not required for this version.
 
+The current world opens facing a procedurally sculpted gray humanoid head.
+Both eyes have articulated eyelids and blink together every 3.5 seconds of
+simulation time (55 ms closing, 15 ms closed, 105 ms reopening). Blinks run in
+the Gazebo plugin even without the webcam process; pausing simulation also pauses
+blinking. Timing is configurable in `gazebo/models/eye/model.sdf` under
+`blink_interval`, `blink_close_time`, `blink_hold_time`, and `blink_open_time`.
+The head is an original approximation, not a scan of a human reference image.
+Regenerate its meshes with `python3 scripts/generate_face_meshes.py` from
+`robot_attention_clean/`. Rebuild the C++ plugin after changing its animation code.
+
 ## Contents
 
 - `gaze_attention/`: perception, tracking, policies, preview, and logging.

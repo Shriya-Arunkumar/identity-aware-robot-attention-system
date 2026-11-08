@@ -1,6 +1,9 @@
 #include <algorithm>
 #include <string>
+#include <functional>
 
+#include <gazebo/common/Events.hh>
+#include <gazebo/common/UpdateInfo.hh>
 #include <gazebo/common/Plugin.hh>
 #include <gazebo/physics/Joint.hh>
 #include <gazebo/physics/JointController.hh>
@@ -9,6 +12,7 @@
 #include <gazebo_ros/node.hpp>
 
 #include <std_msgs/msg/float64.hpp>
+#include "blink_motion.hpp"
 
 namespace gaze_attention_gazebo
 {
@@ -20,6 +24,17 @@ public:
   void Load(gazebo::physics::ModelPtr model, sdf::ElementPtr sdf) override
   {
     this->model_ = model;
+
+    upper_lid_ = model->GetJoint("upper_lid_joint");
+    lower_lid_ = model->GetJoint("lower_lid_joint");
+    blink_interval_ = sdf->Get<double>("blink_interval", 3.5).first;
+    close_time_ = sdf->Get<double>("blink_close_time", 0.055).first;
+    hold_time_ = sdf->Get<double>("blink_hold_time", 0.015).first;
+    open_time_ = sdf->Get<double>("blink_open_time", 0.105).first;
+    if (upper_lid_ && lower_lid_) {
+      blink_update_ = gazebo::event::Events::ConnectWorldUpdateBegin(
+        std::bind(&EyeYawPlugin::UpdateBlink, this, std::placeholders::_1));
+    }
 
     // ============================================================
     // YAW JOINT
@@ -249,6 +264,23 @@ public:
 
 
 private:
+
+  void UpdateBlink(const gazebo::common::UpdateInfo & info)
+  {
+    const double closure = BlinkClosure(
+      info.simTime.Double(), blink_interval_, close_time_, hold_time_, open_time_);
+    // Lightweight, collision-free lids are animated independently of gaze PID.
+    upper_lid_->SetPosition(0, -0.62 * closure);
+    lower_lid_->SetPosition(0, 0.65 * closure);
+  }
+
+  gazebo::physics::JointPtr upper_lid_;
+  gazebo::physics::JointPtr lower_lid_;
+  gazebo::event::ConnectionPtr blink_update_;
+  double blink_interval_ = 3.5;
+  double close_time_ = 0.055;
+  double hold_time_ = 0.015;
+  double open_time_ = 0.105;
 
   // ============================================================
   // MODEL
