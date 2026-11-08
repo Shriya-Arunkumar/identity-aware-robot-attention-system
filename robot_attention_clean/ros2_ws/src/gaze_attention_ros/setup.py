@@ -1,0 +1,40 @@
+import os
+from glob import glob
+from setuptools import find_packages, setup
+
+package_name = "gaze_attention_ros"
+
+setup(
+    name=package_name,
+    version="0.1.0",
+    packages=find_packages(exclude=["test"]),
+    data_files=[
+        (
+            "share/ament_index/resource_index/packages",
+            ["resource/" + package_name],
+        ),
+        (
+            "share/" + package_name,
+            ["package.xml"],
+        ),
+        (
+            os.path.join("share", package_name, "launch"),
+            glob("launch/*.launch.py"),
+        ),
+    ],
+
+
+    install_requires=["setuptools"],
+    zip_safe=True,
+    maintainer="Shriya Arunkumar",
+    maintainer_email="you@example.com",
+    description="Multi-person demo: Gazebo response node for /attention_target_id(_angle).",
+    license="MIT",
+    tests_require=["pytest"],
+    entry_points={
+        "console_scripts": [
+	    "eye_gaze_node = gaze_attention_ros.eye_gaze_node:main",
+	    "gazebo_response_node = gaze_attention_ros.gazebo_response_node:main",
+	],
+    },
+)

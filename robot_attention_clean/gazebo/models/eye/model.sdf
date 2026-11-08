@@ -1,0 +1,210 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+
+  <model name="eye">
+
+    <static>false</static>
+
+    <!-- ============================================================ -->
+    <!-- FIXED REFERENCE / BASE                                      -->
+    <!-- ============================================================ -->
+
+    <link name="eye_base">
+      <pose>0 0 0 0 0 0</pose>
+
+      <inertial>
+        <mass>0.5</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <iyy>0.001</iyy>
+          <izz>0.001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <collision name="base_collision">
+        <geometry>
+          <box>
+            <size>0.1 0.1 0.1</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+
+
+    <!-- ============================================================ -->
+    <!-- INTERMEDIATE LINK FOR YAW                                    -->
+    <!-- ============================================================ -->
+
+    <link name="yaw_link">
+
+      <pose>0 0 0 0 0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>0.0001</ixx>
+          <iyy>0.0001</iyy>
+          <izz>0.0001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+    </link>
+
+
+    <!-- ============================================================ -->
+    <!-- ACTUAL EYE                                                   -->
+    <!-- ============================================================ -->
+
+    <link name="eye_link">
+
+      <inertial>
+        <mass>1.0</mass>
+
+        <inertia>
+          <ixx>0.256</ixx>
+          <iyy>0.256</iyy>
+          <izz>0.256</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <visual name="eye_visual">
+
+        <geometry>
+          <sphere>
+            <radius>0.8</radius>
+          </sphere>
+        </geometry>
+
+        <material>
+          <script>
+            <uri>model://eye/materials/scripts</uri>
+            <uri>model://eye/materials/textures</uri>
+            <name>EyeTexture</name>
+          </script>
+        </material>
+
+      </visual>
+
+    </link>
+
+
+    <!-- ============================================================ -->
+    <!-- YAW JOINT                                                    -->
+    <!--                                                              -->
+    <!-- eye_base --> 
+    <!--      |                                                       -->
+    <!--      | yaw (Y axis)                                          -->
+    <!--      v                                                       -->
+    <!--   yaw_link                                                    -->
+    <!-- ============================================================ -->
+
+    <joint name="eye_yaw_joint" type="revolute">
+
+      <parent>eye_base</parent>
+      <child>yaw_link</child>
+
+      <pose>0 0 0 0 0 0</pose>
+
+      <axis>
+        <xyz>0 1 0</xyz>
+
+        <limit>
+          <lower>-0.7854</lower>
+          <upper>0.7854</upper>
+        </limit>
+
+      </axis>
+
+    </joint>
+
+
+    <!-- ============================================================ -->
+    <!-- PITCH JOINT                                                  -->
+    <!--                                                              -->
+    <!--   yaw_link                                                    -->
+    <!--       |                                                       -->
+    <!--       | pitch (X axis)                                        -->
+    <!--       v                                                       -->
+    <!--   eye_link                                                    -->
+    <!-- ============================================================ -->
+
+    <joint name="eye_pitch_joint" type="revolute">
+
+      <parent>yaw_link</parent>
+      <child>eye_link</child>
+
+      <pose>0 0 0 0 0 0</pose>
+
+      <axis>
+        <xyz>1 0 0</xyz>
+
+        <limit>
+          <lower>-0.5</lower>
+          <upper>0.5</upper>
+        </limit>
+
+      </axis>
+
+    </joint>
+
+
+    <!-- ============================================================ -->
+    <!-- FIX MODEL TO WORLD                                           -->
+    <!-- ============================================================ -->
+
+    <joint name="world_fixed_joint" type="fixed">
+
+      <parent>world</parent>
+      <child>eye_base</child>
+
+    </joint>
+
+
+    <!-- ============================================================ -->
+    <!-- ROS 2 GAZEBO PLUGIN                                          -->
+    <!-- ============================================================ -->
+
+    <plugin
+      name="eye_yaw_plugin"
+      filename="libeye_yaw_plugin.so">
+
+      //-------------- YAW ----------------
+
+      <joint_name>eye_yaw_joint</joint_name>
+
+      <ros_topic>/eye/target_angle</ros_topic>
+
+      <min_angle>-0.7854</min_angle>
+      <max_angle>0.7854</max_angle>
+
+
+       // ---------------- PITCH ---------------- 
+
+      <pitch_joint_name>eye_pitch_joint</pitch_joint_name>
+
+      <pitch_ros_topic>/eye/pitch_angle</pitch_ros_topic>
+
+      <pitch_min_angle>-0.5</pitch_min_angle>
+      <pitch_max_angle>0.5</pitch_max_angle>
+
+
+      // ---------------- PID ---------------- 
+
+      <p_gain>25.0</p_gain>
+      <i_gain>0.0</i_gain>
+      <d_gain>4.0</d_gain>
+
+    </plugin>
+
+  </model>
+
+</sdf>

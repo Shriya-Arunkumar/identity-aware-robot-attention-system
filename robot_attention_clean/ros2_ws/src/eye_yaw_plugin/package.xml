@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>eye_yaw_plugin</name>
+  <version>0.1.0</version>
+  <description>
+    Minimal Gazebo Classic 11 model plugin: subscribes to a ROS 2
+    std_msgs/Float64 topic (radians) and drives a named revolute joint's
+    position PID controller toward that (clamped) target.
+  </description>
+  <maintainer email="you@example.com">Shriya</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>gazebo_dev</depend>
+  <depend>gazebo_ros</depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

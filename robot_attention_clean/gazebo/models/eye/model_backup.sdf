@@ -1,0 +1,78 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+
+  <model name="eye">
+
+    <static>false</static>
+
+    <!-- Everything in the eye is attached to this link -->
+    <link name="eye_link">
+
+      <!-- ==================== -->
+      <!-- SCLERA               -->
+      <!-- ==================== -->
+      <visual name="sclera_visual">
+
+        <geometry>
+          <sphere>
+            <radius>0.5</radius>
+          </sphere>
+        </geometry>
+
+        <material>
+          <ambient>0.95 0.95 0.95 1</ambient>
+          <diffuse>0.95 0.95 0.95 1</diffuse>
+        </material>
+
+      </visual>
+
+
+      <!-- ==================== -->
+      <!-- IRIS                  -->
+      <!-- ==================== -->
+      <visual name="iris_visual">
+
+        <!-- Move iris to the front of the eye -->
+        <pose>0 -0.48 0 0 0 0</pose>
+
+        <geometry>
+          <cylinder>
+            <radius>0.20</radius>
+            <length>0.02</length>
+          </cylinder>
+        </geometry>
+
+        <material>
+          <ambient>0.05 0.25 0.8 1</ambient>
+          <diffuse>0.05 0.25 0.8 1</diffuse>
+        </material>
+
+      </visual>
+
+
+      <!-- ==================== -->
+      <!-- PUPIL                 -->
+      <!-- ==================== -->
+      <visual name="pupil_visual">
+
+        <pose>0 -0.495 0 0 0 0</pose>
+
+        <geometry>
+          <cylinder>
+            <radius>0.09</radius>
+            <length>0.025</length>
+          </cylinder>
+        </geometry>
+
+        <material>
+          <ambient>0.01 0.01 0.01 1</ambient>
+          <diffuse>0.01 0.01 0.01 1</diffuse>
+        </material>
+
+      </visual>
+
+    </link>
+
+  </model>
+
+</sdf>

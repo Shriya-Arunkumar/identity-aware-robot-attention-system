@@ -1,0 +1,16 @@
+material EyeTexture
+{
+    technique
+    {
+        pass
+        {
+            lighting on
+
+            texture_unit
+            {
+                texture eye_texture.png
+                filtering trilinear
+            }
+        }
+    }
+}

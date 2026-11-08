@@ -1,0 +1,9 @@
+# Sourced automatically by install/setup.bash -- so `gazebo` can find both
+# this plugin's compiled .so and the project's gazebo/models/ directory
+# without exporting GAZEBO_PLUGIN_PATH/GAZEBO_MODEL_PATH by hand every
+# session. Paths are baked in at CMake configure time (see CMakeLists.txt)
+# rather than derived from AMENT_CURRENT_PREFIX/COLCON_CURRENT_PREFIX at
+# source time, since which of those is actually set varies with colcon's
+# sourcing mechanism.
+ament_prepend_unique_value GAZEBO_PLUGIN_PATH "@PLUGIN_LIB_DIR@"
+ament_prepend_unique_value GAZEBO_MODEL_PATH "@GAZEBO_MODELS_DIR@"

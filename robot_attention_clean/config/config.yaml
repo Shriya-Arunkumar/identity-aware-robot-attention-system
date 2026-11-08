@@ -1,0 +1,268 @@
+camera_index: 0
+max_faces: 3
+# iou_threshold/max_missed_frames: DEPRECATED -- the greedy single-frame
+# matcher these gated no longer exists (see gaze_attention/tracker.py's
+# three-state TENTATIVE/CONFIRMED/LOST lifecycle). Kept present (not
+# deleted) for back-compat with anything still reading them; IOUTracker
+# accepts and stores them but no longer uses them for matching decisions.
+# Superseded by iou_gate/t_lost_seconds below.
+iou_threshold: 0.3
+max_missed_frames: 15
+# n_confirm: consecutive matched frames before a TENTATIVE track is
+# promoted to CONFIRMED and issued a public id (not exposed to the policy
+# before this).
+n_confirm: 3
+# t_lost_seconds: how long a CONFIRMED track that stops matching (LOST) is
+# retained -- eligible for re-matching, same public id -- before deletion.
+# Duration-based (not frame-count-based, unlike the deprecated
+# max_missed_frames) since the tracker now works in wall-clock time.
+t_lost_seconds: 1.5
+# iou_gate: minimum IoU (predicted bbox vs detection) for the Hungarian
+# assignment to accept a match; below this, both sides are treated as
+# unmatched. Also used for the simpler TENTATIVE-track greedy match.
+iou_gate: 0.2
+# velocity_alpha: EMA weight for each track's constant-velocity bbox-center
+# estimate (1.0 = use only the latest observed velocity, no smoothing).
+velocity_alpha: 0.5
+seeking_threshold: 0.6
+# Gates policy_confidence (NOT filter_uncertainty -- see gaze_attention/
+# filters.py and DEBUG_ATTENTION.md FM1). policy_confidence is currently
+# (Version 1) raw_confidence unmodified -- there are four distinct
+# confidence-related fields in this pipeline, logged separately in every
+# CSV row (see gaze_attention/logger.py's CSV_FIELDS):
+#   raw_confidence      - perception.py's own per-frame model confidence.
+#   filtered_signal      - the smoothed gaze/engagement value (post-filter).
+#   filter_uncertainty   - the filter's own uncertainty about filtered_signal
+#                          (posterior variance for Bayesian, windowed sample
+#                          variance for moving average) -- NEVER used for
+#                          gating, logged for diagnostics only.
+#   policy_confidence    - what confidence_threshold actually applies to.
+confidence_threshold: 0.45
+# Flat per-second decay applied to engagement whenever seeking_attention is
+# false -- shared by GreedyDwellPolicy's score and ConfidenceDebtPolicy's
+# engagement, so both policies penalize idle time at the same rate and
+# differ only in how they GROW engagement while seeking (see
+# DEBUG_ATTENTION.md FM2: without this, ConfidenceDebtPolicy kept whatever
+# engagement a person had banked forever once they stopped seeking).
+engagement_decay: 0.10
+debt_weight: 0.50
+# Upper clamps for ConfidenceDebtPolicy's accumulators -- prevent unbounded
+# score growth over a long session.
+engagement_max: 30.0
+debt_max: 30.0
+minimum_hold_seconds: 0.75
+# How long the current target may be undetected before the policy will
+# release them -- approximates max_missed_frames' grace window in time
+# rather than frame count (policies only see dt, not frame counts). A
+# single missed detection (~1 frame) must never by itself clear the target;
+# see DEBUG_ATTENTION.md FM3.
+target_grace_seconds: 0.5
+# dt handling (see gaze_attention/sanitize_dt and DEBUG_ATTENTION.md FM4):
+# missing/negative/zero/non-finite dt is replaced by dt_fallback_seconds; any
+# dt (including a valid one) is then clamped to [0, dt_max_seconds] so a
+# paused window, dropped frame, or delayed inference can never create a huge
+# single-tick score jump.
+dt_fallback_seconds: 0.033
+dt_max_seconds: 0.2
+# visual_speaking_proxy (see gaze_attention/speech.py): a mouth-motion-based
+# VISUAL auxiliary cue, NOT audio speech recognition -- there is no
+# microphone in this project. Because no microphone was used, mouth motion
+# is treated as a visual proxy for speaking activity and is not equivalent
+# to speaker identification or speech recognition.
+#   speaking_on_threshold/speaking_off_threshold: hysteresis on
+#     mouth_activity to debounce the `speaking` boolean (on > off).
+#   speaking_window_seconds: rolling window mouth_activity is computed over.
+# These three are always active (cheap, no ML inference); speech_mode below
+# is what controls whether POLICIES act on the resulting signal.
+speaking_on_threshold: 0.15
+speaking_off_threshold: 0.08
+speaking_window_seconds: 0.5
+# Defect B (temporal support, see gaze_attention/speech.py). mouth_activity is
+# a STD over speaking_window_seconds, so a single 2-frame (0.067s) mouth spike
+# kept it elevated for the whole 0.5s window -> 0.467s of speaking=True, which
+# cleared speaker_confirm_seconds (0.35s) and let an isolated blip preempt a
+# genuine continuous speaker. Turning speaking ON now ALSO requires that a real
+# fraction of INDIVIDUAL recent frames showed movement (frame-to-frame delta),
+# not just that the rolling statistic is still elevated. Turning OFF is
+# unchanged, so speech pauses are still governed by the existing off-threshold
+# and speech-off grace -- this rejects false onsets only.
+#   An isolated spike scores ~2/9 = 0.22 support; sustained speech ~1.0.
+speech_support_window_seconds: 0.30
+speech_minimum_positive_fraction: 0.30
+speech_activity_delta_threshold: 0.01
+# Was hardcoded in VisualSpeakingProxy and unreachable from config.
+speech_activity_scale: 0.02
+# off: gaze-only behavior, unchanged. mouth_motion: speaking + looking at
+# the robot (seeking_attention) adds speech_weight * speech_confidence to
+# that person's score -- supporting evidence only, still gated by
+# minimum_hold_seconds/target_grace_seconds like everything else; speaking
+# without looking at the robot never causes a switch.
+# Root Cause #2: was "off", which left ConversationalSimplePolicy's entire
+# active-speaker path inert (active_speaker_id permanently None, zero
+# speaker_preempt events, speaker changes waiting on fallback scoring).
+# "mouth_motion" connects perception.py's always-computed mouth-motion cue
+# to speaker selection. Still a VISUAL proxy, not audio speech recognition.
+speech_mode: "mouth_motion"  # YAML 1.1 treats bare `off` as boolean False -- must be quoted
+speech_weight: 0.3
+# Mutual-gaze residual cue (Change A, see gaze_attention/perception.py).
+# hfov_deg builds an APPROXIMATE, UNCALIBRATED camera matrix for cv2.solvePnP
+# (no real camera calibration is available in this project) and maps face
+# image-x to a bearing phi. mutual_gaze_sigma_deg is the Gaussian width
+# mapping residual e=yaw+phi to a [0,1] cue q. mouth_cue_weight folds the
+# existing mouth-motion activity into the interaction cue (default 0.0 -> cue
+# is the mutual-gaze residual alone; mouth motion still drives
+# speaking/speech_confidence separately, unchanged).
+hfov_deg: 60.0
+mutual_gaze_sigma_deg: 12.0
+mouth_cue_weight: 0.0
+# Real confidence variance (Change B, see gaze_attention/perception.py).
+#   C = clip(c_size * c_pose * c_stable, confidence_min, confidence_max)
+#   c_size   = clip(face_diagonal / (face_size_reference_ratio*H), 0, 1)
+#   c_pose   = clip(cos(yaw), 0, 1) ** 2   (yaw from the Change A head pose)
+#   c_stable = 1 / (1 + stability_k * landmark_jitter)  (jitter = temporal
+#              std of frame-normalized landmark positions over the window)
+# pose_unavailable_confidence: conservative c_pose when head pose can't be
+#   recovered (never 1.0; observation also stays marked fallback).
+# stability_init_confidence: conservative c_stable until a track has a full
+#   stability_window_frames of history (a new track is never "perfectly
+#   stable"). stability_k is an initial calibration value, not tuned to any
+#   specific camera.
+# Change C: ablation flag. When false, all confidence consumers substitute
+# C=1.0 — perception and logging still compute/record the true C and its
+# components, only policy/manager consumption is bypassed.
+use_confidence: true
+confidence_min: 0.05
+confidence_max: 1.0
+face_size_reference_ratio: 0.18
+stability_window_frames: 5
+stability_k: 50.0
+pose_unavailable_confidence: 0.5
+stability_init_confidence: 0.5
+# AttentionManager (see gaze_attention/attention_manager.py): a higher-level
+# conversational/socially-bounded gaze layer wrapped AROUND the base policy
+# above, not a replacement for it. "off" is a transparent passthrough --
+# gaze-only behavior is unchanged. Needs speech_mode: mouth_motion to have
+# any effect (it reads the same speaking/seeking_attention fields).
+# NOTE: superseded as the recommended conversational approach by
+# ConversationalSimplePolicy (active_policy: conversational_simple, below)
+# -- kept available, still off by default. speaker_confirm_seconds/
+# speaker_release_seconds/max_continuous_gaze_seconds are shared by both
+# features (same concepts, same names, both fast defaults now -- see the
+# live-latency fix below); speaker_min_attention_seconds/stare_penalty_weight
+# below are AttentionManager's OWN keys -- ConversationalSimplePolicy has
+# its own separate minimum_speaker_attention_seconds/
+# recent_attention_penalty_weight, not numerically tied to these.
+speaker_priority_mode: "off"  # off | on -- quoted for the same YAML 1.1 reason as speech_mode
+# Joint speaker-confirmation/switch timers. These two gate the SAME transition
+# and the binding constraint is max(confirm, switch): a challenger must clear
+# speaker_confirm_seconds to become a valid candidate AND speaker_switch_seconds
+# to preempt an existing active speaker. A measured sweep showed that lowering
+# only ONE leaves existing-speaker turn-taking latency completely unchanged
+# (0.567s at 0.35/0.35, 0.35/0.20 and 0.20/0.35 alike) -- they must move
+# together. Lowered jointly to 0.25 (7-8 frames at 30fps). False-positive
+# rejection is carried by speech.py's temporal-support gate (Defect B), not by
+# these timers, and was verified unchanged across the whole sweep.
+speaker_confirm_seconds: 0.25      # continuous speaking before confirming a speaker (fast path)
+speaker_min_attention_seconds: 5.0 # AttentionManager only -- floor: a confirmed speaker keeps status at least this long
+speaker_release_seconds: 0.40      # how long a speaker may go silent before losing active status (fast path)
+quiet_gaze_confirm_seconds: 5.5    # AttentionManager only: sustained eye contact before acknowledgment
+quiet_acknowledgment_seconds: 1.2  # AttentionManager only: length of that brief acknowledgment
+max_continuous_gaze_seconds: 8.0   # attention_duration threshold where the soft stare penalty starts
+gaze_break_seconds: 2.5            # AttentionManager only: length of the soft gaze break once saturated
+stare_penalty_weight: 0.2          # AttentionManager only -- per-second ramp rate of ITS bounded stare penalty
+# ConversationalSimplePolicy (policies.py) -- the ACTIVE target-selection
+# policy (active_policy, below): chooses a confirmed active speaker
+# directly (speaking + speech_confidence, looking at the robot NOT required
+# -- see policies.py's docstring for why) with no comparison against
+# anyone's accumulated lifetime engagement, falling back to bounded
+# short-term gaze selection (including a bounded quietness penalty -- never
+# penalizes a quiet person maintaining reliable eye contact, never
+# overrides an active speaker, never unbounded) when no one is speaking.
+# "Fast speaker-first path" (live-latency fix): speaker_switch_seconds lets
+# a DIFFERENT already-valid speaker preempt the current active speaker
+# without waiting for the old one's silence-release timer;
+# minimum_speaker_attention_seconds is a much shorter floor (was 5.0s,
+# folded into speaker_min_attention_seconds -- now 2.0s and its own key)
+# protecting only against instant flicker-to-fallback on a barely-confirmed
+# speaker's brief pause, not against being preempted by a real competing
+# speaker. Initial calibration values, not a claim of universal
+# correctness -- see README.md.
+speaker_switch_seconds: 0.25            # a different valid speaker preempts after this much stable evidence (joint with speaker_confirm_seconds above)
+minimum_speaker_attention_seconds: 2.0  # floor before release-to-silence (does NOT block preemption)
+speaker_confidence_threshold: 0.25 # minimum speech_confidence (data sufficiency) to confirm a speaker
+# Root Cause #3 (arbitration latency). These three were CLASS DEFAULTS in
+# ConversationalSimplePolicy and absent from config entirely, so the largest
+# single contributor to switch latency could not be tuned without editing
+# source. Now exposed, validated, and wired through _make_conversational_simple.
+#   speaker_switch_confirm_seconds: how long a newly confirmed speaker must
+#     remain the SAME pending challenger before preemption fires. Was 0.5 --
+#     that WAS the entire measured 0.533s arbitration delay. 0.20 keeps a real
+#     stability check (6 frames at 30fps) while cutting 0.3s. Never set 0: a
+#     one-frame misdetection must not be able to move the target. Also feeds
+#     promotion_protection_seconds (= this + speaker_confirm_seconds), the
+#     anti-ping-pong guard, which stays positive at 0.55s.
+#   speech_off_confirm_seconds / speaker_absence_grace_seconds: deliberately
+#     NOT shortened -- these protect a speaker through brief pauses and brief
+#     occlusions respectively. Off/grace timers stay conservative.
+speaker_switch_confirm_seconds: 0.20
+speech_off_confirm_seconds: 0.7
+speaker_absence_grace_seconds: 0.8
+# Debt-oscillation fix (Root Cause #1) -- the fallback (no-active-speaker)
+# path compared candidate vs incumbent with a bare `>`, while attention_debt
+# is reset to 0 for the current target and grows for everyone else. Two
+# equally-engaged people therefore had the challenger STRICTLY ahead every
+# tick by construction, firing a switch the moment minimum_hold_seconds
+# expired -- a guaranteed ~0.8s ping-pong between two SILENT people.
+#   fallback_switch_margin: a fallback challenger must beat the incumbent by
+#     MORE than this. 0.10 is ~0.11s of exclusive seeking at confidence 0.9,
+#     so it kills tie/debt flapping without meaningfully delaying a real
+#     engagement change. Applies to the FALLBACK path only -- the
+#     speaker-preemption path is deliberately not gated by it.
+#   debt_requires_speech: when true, attention_debt is excluded from the
+#     fallback switch COMPARISON while neither incumbent nor challenger has
+#     confirmed speaking evidence. Debt is still accrued and still logged;
+#     it just cannot by itself cause a switch in the no-speaker state.
+fallback_switch_margin: 0.10
+debt_requires_speech: true
+non_speaking_score_decay: 0.5      # per-second fallback-score decay when neither speaking nor looking
+recent_attention_penalty_weight: 0.2 # ConversationalSimplePolicy's own per-second bounded stare-penalty ramp rate
+quiet_decay_rate: 1.0              # quiet_penalty += quiet_decay_rate * dt while neither speaking nor looking
+quiet_penalty_max: 3.0             # hard cap on the quietness penalty -- bounded, never grows without limit
+inference_every_n_frames: 1
+# GreedyDwellPolicy (gaze_attention/baseline_policies.py) is baseline-only
+# -- never the default/active policy. Keep this "conversational_simple"
+# unless explicitly overriding for a deliberate baseline comparison.
+active_policy: conversational_simple  # the policy actually driving the robot; greedy/confidence_debt remain available as baselines
+policy: confidence_debt            # base policy for AttentionManager (speaker_priority_mode) / baseline hotkeys -- NOT used when active_policy=conversational_simple
+# Kalman was removed from this prototype's scope (see README.md "Filter
+# scope" and CLAUDE.md) -- choices are moving_average | bayesian.
+filter: moving_average
+ros_enabled: true
+# RosPublisher (main_webcam.py) throttling for /attention_target_id +
+# /attention_target_angle: publish only when the selected target id changes,
+# or at most this often otherwise (a low fixed rate) -- not every frame.
+# 0.05s (20 Hz) rather than the old 0.2s (5 Hz): smoothing now lives
+# entirely in eye_gaze_node.py's slew-rate limiter downstream, so this
+# stage's job is just to not spam the wire -- a faster rate here means
+# fresher raw angles for that limiter to work with.
+ros_min_publish_interval_seconds: 0.05
+# target_angle.py: /attention_target_angle tracks the SELECTED person's
+# CURRENT face position (face_center_x -> normalized_x -> target_angle),
+# not a fixed per-id lookup. /attention_target_id (WHO) and
+# /attention_target_angle (WHERE their face currently is) are deliberately
+# independent -- see main_webcam.py's RosPublisher docstring.
+# target_angle_max is both the derivation max and the clamp bound, and also
+# defines the fixed id->angle fallback mapping (target_angle.FALLBACK_ANGLES:
+# 0=left/-max, 1=center/0, 2=right/+max) used when face coordinates aren't
+# usable this tick. This process publishes the RAW angle -- there is no
+# smoothing config here. Smoothing is exactly one stage, in eye_gaze_node.py
+# (ROS params max_angular_speed/control_rate_hz on that node, not this
+# file) -- do not add a target_angle_smoothing_* key back without removing
+# smoothing from wherever else it lives.
+target_angle_max: 0.65
+target_pitch_max: 0.5
+display_enabled: true
+log_enabled: true
+# When true, prints raw_dt/used_dt (and other future debug diagnostics) to
+# the console every tick. Off by default -- this is a lot of console spam.
+debug: false
