@@ -28,13 +28,12 @@ setup(
     zip_safe=True,
     maintainer="Shriya Arunkumar",
     maintainer_email="you@example.com",
-    description="Multi-person demo: Gazebo response node for /attention_target_id(_angle).",
+    description="Multi-person demo: eye controller for Gazebo Classic.",
     license="MIT",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
 	    "eye_gaze_node = gaze_attention_ros.eye_gaze_node:main",
-	    "gazebo_response_node = gaze_attention_ros.gazebo_response_node:main",
 	],
     },
 )
